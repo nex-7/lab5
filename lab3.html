@@ -1,0 +1,184 @@
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<script type="text/javascript">
+			function CropCanvas(canvas) {
+				let ctx = canvas.getContext('2d');
+				let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+				canvas.width = canvas.offsetWidth;
+				canvas.height = canvas.offsetHeight;
+				ctx.putImageData(imageData, 0, 0);
+			}
+			
+			function ResizeCanvas(canvas) {
+				canvas.style.width = '';
+				canvas.style.height = '';
+				let canvas_ratio = canvas.width / canvas.height;
+				let offset_ratio = canvas.offsetWidth / canvas.offsetHeight;
+				if (canvas_ratio > offset_ratio) {
+					canvas.style.height = canvas.offsetWidth / canvas_ratio + 'px';
+				}
+				else {
+					canvas.style.width =  canvas.offsetHeight * canvas_ratio + 'px';
+				}
+			}
+			
+			function Resize() {
+				Resize.canvases.forEach(function (canvas) {
+					CropCanvas(canvas);
+				});
+				Resize.scalable_canvases.forEach(function (canvas) {
+					ResizeCanvas(canvas);
+				});
+				if (Resize.callback) {
+					Resize.callback();
+				}
+			}
+			Resize.canvases = [];
+			Resize.scalable_canvases = [];
+			Resize.callback = null;
+			window.onresize = Resize;
+			
+			function CanvasInit(id, width, height) {
+				let canvas = document.getElementById(id);
+				if (arguments.length == 1) {
+					canvas.width = canvas.offsetWidth;
+					canvas.height = canvas.offsetHeight;
+					CropCanvas(canvas);
+					Resize.canvases.push(canvas);
+				}
+				else {
+					canvas.width = width;
+					canvas.height = height;
+					ResizeCanvas(canvas);
+					Resize.scalable_canvases.push(canvas);
+				}
+				return canvas;
+			}
+		</script>
+		<title>
+			Лабораторная работа №3
+		</title>
+	</head>
+	
+	<body>
+		<div id="canvases">
+			<canvas id="canvas" width="1920" height="912"></canvas>
+		</div>
+		<script type="text/javascript">
+			function line(ctx, x1, y1, x2, y2) {
+				let x_delta = Math.abs(x2 - x1);
+				let y_delta = Math.abs(y2 - y1);
+
+				let horizontal = x_delta > y_delta;
+				let c1_begin, c1_end, c1_dir;
+				let c2_begin, c2_dir;
+				let error_delta, error_limit;
+				if (horizontal) {
+					c1_begin = x1;
+					c1_end = x2;
+					c1_dir = x2 > x1 ? 1 : -1;
+					c2_begin = y1;
+					c2_dir = y2 > y1 ? 1 : -1;
+					error_delta = y_delta;
+					error_limit = x_delta;
+				}
+				else {
+					c1_begin = y1;
+					c1_end = y2;
+					c1_dir = y2 > y1 ? 1 : -1;
+					c2_begin = x1;
+					c2_dir = x2 > x1 ? 1 : -1;
+					error_delta = x_delta;
+					error_limit = y_delta;
+				}
+
+				let error = 0;
+				let c2 = c2_begin;
+				for (let c1 = c1_begin; c1 !== c1_end + c1_dir; c1 += c1_dir) {
+					ctx.fillRect(horizontal ? c1 : c2, horizontal ? c2 : c1, 1, 1);
+					error = error + error_delta;
+					if (2 * error >= error_limit) {
+						c2 = c2 + c2_dir;
+						error = error - error_limit;
+					}
+				}
+			}
+
+			function circle(ctx, x0, y0, r) {
+				let x = 0;
+				let y = r;
+				let delta = 1 - 2 * r;
+				let error = 0;
+				while (y >= 0) {
+					ctx.fillRect(x0 + x, y0 + y, 1, 1);
+					ctx.fillRect(x0 + x, y0 - y, 1, 1);
+					ctx.fillRect(x0 - x, y0 + y, 1, 1);
+					ctx.fillRect(x0 - x, y0 - y, 1, 1);
+					error = 2 * (delta + y) - 1;
+					if ((delta < 0) && (error <= 0)) {
+						delta += 2 * ++x + 1;
+						continue;
+					}
+					if ((delta > 0) && (error > 0)) {
+						delta -= 2 * --y + 1;
+						continue;
+					}
+					delta += 2 * (++x - y--);
+				}
+				return true;
+			}
+
+			function lineClick(event) {
+				event.preventDefault();
+				if (!lineClick.started) {
+					lineClick.started = true;
+					lineClick.x = Math.trunc(event.offsetX / SCALE);
+					lineClick.y = Math.trunc(event.offsetY / SCALE);
+				}
+				else {
+					line(this.getContext('2d'), lineClick.x, lineClick.y, Math.trunc(event.offsetX / SCALE), Math.trunc(event.offsetY / SCALE));
+					lineClick.started = false;
+				}
+			}
+
+			function circleClick(event) {
+				event.preventDefault();
+				if (!circleClick.started) {
+					circleClick.started = true;
+					circleClick.x = Math.trunc(event.offsetX / SCALE);
+					circleClick.y = Math.trunc(event.offsetY / SCALE);
+				}
+				else {
+					let newX = Math.trunc(event.offsetX / SCALE);
+					let newY = Math.trunc(event.offsetY / SCALE);
+					let radius = Math.sqrt(Math.pow(circleClick.x - newX, 2) + Math.pow(circleClick.y - newY, 2));
+					circle(this.getContext('2d'), circleClick.x, circleClick.y, radius);
+					circleClick.started = false;
+				}
+			}
+
+			// Main code
+			let canvas = CanvasInit('canvas');
+			let ctx = canvas.getContext('2d');
+			canvas.addEventListener('click', lineClick);
+			canvas.addEventListener('contextmenu', circleClick);
+
+			// Масштаб
+			let SCALE = 10;
+			ctx.scale(SCALE, SCALE);
+
+			// Треугольник
+			line(ctx, 5, 3, 15, 11);
+			line(ctx, 3, 28, 15, 11);
+			line(ctx, 5, 3, 3, 28);
+
+			// Круг
+			circle(ctx, 30, 30, 11);
+
+			// Вертикальные и горизонтальные прямые, соединяющие круг с треугольником
+			line(ctx, 16, 11, 30, 11);
+			line(ctx, 30, 11, 30, 18);
+		</script>
+	</body>
+</html>
