@@ -1,0 +1,151 @@
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<script type="text/javascript">
+			function CropCanvas(canvas) {
+				let ctx = canvas.getContext('2d');
+				let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+				canvas.width = canvas.offsetWidth;
+				canvas.height = canvas.offsetHeight;
+				ctx.putImageData(imageData, 0, 0);
+			}
+			
+			function ResizeCanvas(canvas) {
+				canvas.style.width = '';
+				canvas.style.height = '';
+				let canvas_ratio = canvas.width / canvas.height;
+				let offset_ratio = canvas.offsetWidth / canvas.offsetHeight;
+				if (canvas_ratio > offset_ratio) {
+					canvas.style.height = canvas.offsetWidth / canvas_ratio + 'px';
+				}
+				else {
+					canvas.style.width =  canvas.offsetHeight * canvas_ratio + 'px';
+				}
+			}
+			
+			function Resize() {
+				Resize.canvases.forEach(function (canvas) {
+					CropCanvas(canvas);
+				});
+				Resize.scalable_canvases.forEach(function (canvas) {
+					ResizeCanvas(canvas);
+				});
+				if (Resize.callback) {
+					Resize.callback();
+				}
+			}
+			Resize.canvases = [];
+			Resize.scalable_canvases = [];
+			Resize.callback = null;
+			window.onresize = Resize;
+			
+			function CanvasInit(id, width, height) {
+				let canvas = document.getElementById(id);
+				if (arguments.length == 1) {
+					canvas.width = canvas.offsetWidth;
+					canvas.height = canvas.offsetHeight;
+					CropCanvas(canvas);
+					Resize.canvases.push(canvas);
+				}
+				else {
+					canvas.width = width;
+					canvas.height = height;
+					ResizeCanvas(canvas);
+					Resize.scalable_canvases.push(canvas);
+				}
+				return canvas;
+			}
+			
+			function LoadImage(old_canvas, src, new_canvas, callback) {
+				let img = new Image();
+				let args = arguments.length;
+				img.onload = function () {
+					old_canvas.getContext('2d').drawImage(img, 0, 0);
+					if (args == 4) {
+						callback(old_canvas, new_canvas);
+					}
+				};
+				img.src = src;
+			}
+		</script>
+		<title>
+			Лабораторная работа №4
+		</title>
+	</head>
+	
+	<body>
+		<div id="canvases" class="double">
+			<canvas id="old_canvas" width="750" height="700" style="height: 878.267px;"></canvas>
+    <canvas id="new_canvas" width="750" height="700" style="height: 878.267px;"></canvas>
+		</div>
+		<script type="text/javascript">
+			function Sobel(old_canvas, new_canvas) {
+				function Bright(data, n) {
+					return (data[n] + data[n + 1] + data[n + 2]) / 3;
+				}
+
+				function Gx(data, p11, p12, p13, p31, p32, p33) {
+					return (
+						+Bright(data, p31) + 2 * Bright(data, p32) + Bright(data, p33)
+						- Bright(data, p11) - 2 * Bright(data, p12) - Bright(data, p13)
+					);
+				}
+
+					function Gy(data, p11, p21, p31, p13, p23, p33) {
+						return (
+						+Bright(data, p13) + 2 * Bright(data, p23) + Bright(data, p33)
+						- Bright(data, p11) - 2 * Bright(data, p21) - Bright(data, p31)
+						);
+					}
+
+					function Count(data, width, height, x, y) {
+						let p11 = ((y - 1) * width + (x - 1)) * 4;
+						let p12 = p11 + 4;
+						let p13 = p12 + 4;
+						let p21 = (y * width + (x - 1)) * 4;
+						let p22 = p21 + 4;
+						let p23 = p22 + 4;
+						let p31 = ((y + 1) * width + (x - 1)) * 4;
+						let p32 = p31 + 4;
+						let p33 = p32 + 4;
+						let gx = Gx(data, p11, p12, p13, p31, p32, p33);
+						let gy = Gy(data, p11, p21, p31, p13, p23, p33);
+						return Math.round(Math.sqrt(Math.pow(gx, 2) + Math.pow(gy, 2)));
+					}
+
+				let width = old_canvas.width;
+				let height = old_canvas.height;
+				let imageData = old_canvas.getContext('2d').getImageData(0, 0, width, height);
+        
+				let brights = [];
+				let max_bright = 0;
+				for (let x = 0; x < width; ++x) {
+					for (let y = 0; y < height; ++y) {
+						if (x == 0 || y == 0) {
+							let l = y * width + x;
+							brights[l] = Bright(imageData.data, l * 4);
+						}
+						else {
+							let l = y * width + x;
+							let bright = Count(imageData.data, width, height, x, y);
+							if (bright > max_bright) max_bright = bright;
+							brights[l] = bright;
+						}
+					}
+				}
+				
+				for (let i = 0; i < brights.length; ++i) {
+					let new_value = brights[i] * 255 / max_bright;
+					imageData.data[i * 4] = new_value;
+					imageData.data[i * 4 + 1] = new_value;
+					imageData.data[i * 4 + 2] = new_value;
+				}
+				new_canvas.getContext('2d').putImageData(imageData, 0, 0);
+			}
+
+			let old_canvas = CanvasInit('old_canvas', 750, 700);
+			let new_canvas = CanvasInit('new_canvas', 750, 700);
+			LoadImage(old_canvas, 'test.jpg', new_canvas, Sobel);
+		</script>
+	</body>
+</html>
