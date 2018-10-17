@@ -1,0 +1,127 @@
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+		<title>
+			Лабораторная работа №5
+		</title>
+	
+		<canvas id ="canvas" width ="500" height="500" style = "border: 1px solid black"></canvas>
+	
+		<script>
+			var canvas = document.getElementById("canvas");
+			var context = canvas.getContext("2d");
+			var x_min = 100, y_min = 400, x_max=400, y_max = 100;
+		
+			function get_code(x,y) {
+				return [ x < x_min, x > x_max, y > y_min, y < y_max];
+			}
+		
+			function bit(code_1, code_2) {
+				var result = [];
+				for(var i = 0; i < 4; i++) {
+					result[i] = code_1[i]&code_2[i];
+				}
+				return result;
+			}
+
+			var Line = {
+				start_x: undefined,
+				start_y: undefined,
+				end_x: undefined,
+				end_y: undefined,
+				start_code: undefined,
+				end_code: undefined
+			};
+		
+			function is_zero(code) {
+				for(var i = 0; i < 4; i++) {
+					if (code[i]) return false;
+				}
+				return true;
+			}
+
+			function draw_line(x1, x2, y1, y2) {
+				while(true) {
+					var start_code = get_code(x1, y1), end_code = get_code(x2, y2);
+					if(!is_zero(bit(start_code,end_code)))
+						return;
+					
+					if (is_zero(start_code)&&is_zero(end_code)) {
+						context.beginPath();
+						context.moveTo(x1, y1);
+						context.lineTo(x2, y2);
+						context.stroke();
+						break;
+					}
+        
+					if(start_code[0]) {
+						y1 -= (x_min-x1)*(y1-y2)/(x2-x1);
+						x1 = x_min;
+						continue;
+					}
+        
+					if(end_code[0]) {
+						y2 -= (x_min-x2)*(y1-y2)/(x2-x1);
+						x2 = x_min;
+						continue;
+					}
+        
+					if(end_code[1]) {
+						y2 -= (-x2 + x_max) * (y1 - y2) / (x2 - x1);
+						x2 = x_max;
+						continue;
+					}
+        
+					if(start_code[1]) {
+						y1 -= (-x1 + x_max) * (y1 - y2) / (x2 - x1);
+						x1 = x_max;
+						continue;
+					}
+        
+					if(start_code[3]) {
+						x1+=(y_max-y1)*(x2-x1)/(y2-y1);
+						y1 =y_max;
+						continue;
+					}
+				
+					if(end_code[3]) {
+						x2+=(y_max-y2)*(x2-x1)/(y2-y1);
+						y2 =y_max;
+						continue;
+					}
+        
+					if(start_code[2]) {
+						x1+=(y_min-y1)*(x2-x1)/(y2-y1);
+						y1 =y_min;
+						continue;
+					}
+        
+					if(end_code[2]) {
+						x2+=(y_min-y2)*(x2-x1)/(y2-y1);
+						y2 =y_min;
+						continue;
+					}
+				}
+			}
+
+			context.strokeRect(x_min, y_min, x_max-x_min, y_max-y_min);
+			canvas.onclick = function (e) {
+				var x = e.offsetX;
+				var y = e.offsetY;
+    
+				if(Line.start_x == undefined) {
+					Line.start_x = x;
+					Line.start_y = y;
+					Line.start_code = get_code(x, y);
+				}
+				else {
+					Line.end_x = x;
+					Line.end_y = y;
+					Line.end_code = get_code(x, y);
+					draw_line(Line.start_x, Line.end_x, Line.start_y, Line.end_y);
+					Line.start_x = undefined;
+				}
+			};
+		</script>
+	</head>
+</html>
